@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/yuriadams/prometheus-elasticsearch-adapter/config"
+	"github.com/yuriadams/prometheus-elasticsearch-adapter/reader"
 	"github.com/yuriadams/prometheus-elasticsearch-adapter/writer"
 )
 
@@ -35,8 +36,8 @@ func main() {
 	cfg := config.GetConfig()
 	http.Handle(cfg.TelemetryPath, prometheus.Handler())
 
-	http.HandleFunc("/write", writer.Handler)
-	// http.HandleFunc("/read", reader.Handler)
+	http.HandleFunc("/write", writer.Handle)
+	http.HandleFunc("/read", reader.Handle)
 
 	log.Info("Starting server %s...", cfg.ListenAddr)
 	http.ListenAndServe(cfg.ListenAddr, nil)
