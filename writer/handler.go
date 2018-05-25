@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -43,20 +42,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	samples := protoToSamples(&req)
 	config.ReceivedSamples.Add(float64(len(samples)))
 
-	var wg sync.WaitGroup
-	for _, w := range buildClients() {
-		wg.Add(1)
-		go func(rw writer) {
-			sendSamples(rw, samples)
-			wg.Done()
-		}(w)
-	}
-	wg.Wait()
+	go func(rw writer) {
+		sendSamples(rw, samples)
+	}(buildWriter())
 }
 
-func buildClients() []writer {
+func buildWriter() writer {
 	cfg := config.GetConfig()
-	var writers []writer
+	var w writer
 
 	if cfg.ElasticsearchURL != "" {
 		url, err := url.Parse(cfg.ElasticsearchURL)
@@ -64,10 +57,10 @@ func buildClients() []writer {
 			log.Fatalf("Failed to parse Elasticsearch URL %q: %v", cfg.ElasticsearchURL, err)
 		}
 		c := elasticsearch.NewClient(url.String(), cfg.ElasticsearchMaxRetries,
-			cfg.ElasticIndexPerfix, cfg.ElasticType, cfg.RemoteTimeout)
-		writers = append(writers, c)
+			cfg.ElasticIndexPerfix, cfg.ElasticType, 30*time.Second)
+		w = c
 	}
-	return writers
+	return w
 }
 
 func protoToSamples(req *remote.WriteRequest) model.Samples {
@@ -84,6 +77,7 @@ func protoToSamples(req *remote.WriteRequest) model.Samples {
 				Value:     model.SampleValue(s.Value),
 				Timestamp: model.Time(s.TimestampMs),
 			})
+
 		}
 	}
 	return samples

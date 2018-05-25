@@ -2,6 +2,5 @@ elasticsearch.url: http://localhost:9200
 elasticsearch.max.retries: 1
 elasticsearch.index.perfix: prometheus
 elasticsearch.type: prom-metric
-web.timeout: 30
 web.listen.addr: :9201
 web.telemetry.path: /metrics
