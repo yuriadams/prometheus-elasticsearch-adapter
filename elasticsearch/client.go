@@ -85,13 +85,11 @@ func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout
 	}
 }
 
-// Write sends a batch of samples to Graphite.
+// Write sends a batch of samples to Elasticsearch.
 func (c *Client) Write(samples model.Samples) error {
 	bulkRequest := c.client.Bulk().Timeout(c.timeout.String())
 
 	for _, s := range samples {
-		document := make(map[string]interface{}, len(s.Metric)+2)
-
 		v := float64(s.Value)
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			log.Debugf("cannot send value %f to Elasticsearch, skipping sample %#v", v, s)
@@ -99,7 +97,7 @@ func (c *Client) Write(samples model.Samples) error {
 			continue
 		}
 
-		document = fieldsFromMetric(s.Metric)
+		document := fieldsFromMetric(s.Metric)
 		document["value"] = v
 		document["timestamp"] = s.Timestamp.Time()
 		documentJSON, err := json.Marshal(document)

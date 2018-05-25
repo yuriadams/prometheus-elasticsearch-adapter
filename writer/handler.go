@@ -20,6 +20,7 @@ type writer interface {
 	Name() string
 }
 
+// Handler receives the payload from Prometheus, format and send to Elasticsearch
 func Handler(w http.ResponseWriter, r *http.Request) {
 	compressed, err := ioutil.ReadAll(r.Body)
 	if err != nil {
