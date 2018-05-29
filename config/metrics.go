@@ -2,6 +2,7 @@ package config
 
 import "github.com/prometheus/client_golang/prometheus"
 
+// Apps's metrics
 var (
 	ReceivedSamples = prometheus.NewCounter(
 		prometheus.CounterOpts{

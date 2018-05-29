@@ -63,9 +63,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 			{Timeseries: responseToTimeseries(datapoints)},
 		},
 	}
-	// log.Infof("Entrypoint: time - %s  |  Value: %f", datapoint["timestamp"].(string), datapoint["value"].(float64))
+
 	log.Infof("Returned %d time series.", len(resp.Results[0].Timeseries))
-	// log.Info(">>>>>>>>>>>>>>>>>>>>>", resp.Results[0].Timeseries)
 	data, err := proto.Marshal(&resp)
 
 	if err != nil {
@@ -83,6 +82,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// responseToTimeseries parses structure from elasticsearch to prometheus strutcs
 func responseToTimeseries(dataPoints []map[string]interface{}) []*remote.TimeSeries {
 	labelsToSeries := map[string]*remote.TimeSeries{}
 
@@ -129,6 +129,7 @@ func responseToTimeseries(dataPoints []map[string]interface{}) []*remote.TimeSer
 	return resp
 }
 
+// each metric has a unique key with its labels to avoid duplication on the graph
 func buildKey(datapoint map[string]interface{}) string {
 	keys := make([]string, 0, len(datapoint))
 	for k, v := range datapoint {

@@ -53,7 +53,7 @@ func generateEsIndex(esIndexPerfix string) string {
 	return esIndexPerfix + separator + dateSuffix
 }
 
-// NewClient return a Client which contains an elasticsearch client.
+// NewClient returns a Client which contains an elasticsearch client.
 // Now, it generates the real esIndex formatted with `<esIndexPerfix>-YYYY-mm-dd`.
 func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout time.Duration) *Client {
 	ctx := context.Background()
@@ -157,6 +157,7 @@ func (c *Client) Read(req *remote.ReadRequest) ([]map[string]interface{}, error)
 		query = query.Must(elastic.NewTermQuery(matcher.Name, matcher.Value))
 	}
 
+	// building elasticsearch query
 	query = query.Filter(elastic.
 		NewRangeQuery("timestamp").
 		From(querier.StartTimestampMs).
@@ -176,6 +177,7 @@ func (c *Client) Read(req *remote.ReadRequest) ([]map[string]interface{}, error)
 
 	var dataPoints []map[string]interface{}
 
+	// parsing elasticsearch hits to array with datapoints
 	if searchResult.Hits.TotalHits > 0 {
 		fmt.Printf("Found a total of %d data points\n", searchResult.Hits.TotalHits)
 

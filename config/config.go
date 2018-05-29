@@ -8,7 +8,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type config struct {
+// Config for the app
+type Config struct {
 	ElasticsearchURL        string        `yaml:"elasticsearch.url"`
 	ElasticsearchMaxRetries int           `yaml:"elasticsearch.max.retries"`
 	ElasticIndexPerfix      string        `yaml:"elasticsearch.index.perfix"`
@@ -18,9 +19,10 @@ type config struct {
 	TelemetryPath           string        `yaml:"web.telemetry.path"`
 }
 
-func GetConfig() *config {
-	cfg := &config{}
-	yamlFile, err := ioutil.ReadFile("./config/config.yaml")
+// GetConfig returns the app's configuration described on config.yaml on root
+func GetConfig() *Config {
+	cfg := &Config{}
+	yamlFile, err := ioutil.ReadFile("./config.yaml")
 
 	if err != nil {
 		log.Printf("yamlFile.Get err  #%v ", err)

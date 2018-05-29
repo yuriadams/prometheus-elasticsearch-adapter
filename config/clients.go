@@ -10,16 +10,19 @@ import (
 	"github.com/yuriadams/prometheus-elasticsearch-adapter/elasticsearch"
 )
 
+// Writer represents the interface that each client must implement write function
 type Writer interface {
 	Write(samples model.Samples) error
 	Name() string
 }
 
+// Reader represents the interface that each client must implement read function
 type Reader interface {
 	Read(req *remote.ReadRequest) ([]map[string]interface{}, error)
 	Name() string
 }
 
+// BuildClient returns elasticsearch's client with writer and reader functions
 func BuildClient() (Writer, Reader) {
 	cfg := GetConfig()
 	var w Writer
