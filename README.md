@@ -13,13 +13,18 @@ go build
 ## Running
 
 ```
-./prometheus-elasticsearch-adapter -elasticsearch-url=http://localhost:9200/ -elasticsearch.max-retries=1 -elasticsearch.index-perfix=prometheus -elasticsearch.type=prom-metric
+./prometheus-elasticsearch-adapter
 ```
 
-To show all flags:
+config.yaml file:
 
-```
-./prometheus-elasticsearch-adapter -h
+```yaml
+elasticsearch.url: http://localhost:9200
+elasticsearch.max.retries: 1
+elasticsearch.index.perfix: prometheus
+elasticsearch.type: prom-metric
+web.listen.addr: :9201
+web.telemetry.path: /metrics
 ```
 
 ## Configuring Prometheus
@@ -31,7 +36,7 @@ To configure Prometheus to send samples to this binary, add the following to you
 remote_write:
   - url: "http://localhost:9201/write"
 
-# Remote read configuration (TODO: remote read for elastic not implement yet).
+# Remote read configuration
 remote_read:
   - url: "http://localhost:9201/read"
 ```
