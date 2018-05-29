@@ -3,6 +3,8 @@ package reader
 import (
 	"io/ioutil"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -63,7 +65,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	}
 	// log.Infof("Entrypoint: time - %s  |  Value: %f", datapoint["timestamp"].(string), datapoint["value"].(float64))
 	log.Infof("Returned %d time series.", len(resp.Results[0].Timeseries))
-	log.Info(">>>>>>>>>>>>>>>>>>>>>", resp.Results[0].Timeseries)
+	// log.Info(">>>>>>>>>>>>>>>>>>>>>", resp.Results[0].Timeseries)
 	data, err := proto.Marshal(&resp)
 
 	if err != nil {
@@ -82,37 +84,38 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 }
 
 func responseToTimeseries(dataPoints []map[string]interface{}) []*remote.TimeSeries {
-	labelsToSeries := []*remote.TimeSeries{}
-	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
-	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
-	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
-	// dataPoints = append(dataPoints[:0], dataPoints[1:]...)
-	for i, datapoint := range dataPoints {
-		labelPairs := make([]*remote.LabelPair, 0, len(dataPoints)+1)
+	labelsToSeries := map[string]*remote.TimeSeries{}
 
-		for k, v := range datapoint {
-			if k != "value" && k != "timestamp" {
-				labelPairs = append(labelPairs, &remote.LabelPair{
-					Name:  k,
-					Value: v.(string),
-				})
+	for _, datapoint := range dataPoints {
+		key := buildKey(datapoint)
+		ts, ok := labelsToSeries[key]
+
+		if !ok {
+			labelPairs := make([]*remote.LabelPair, 0, len(dataPoints)+1)
+
+			for k, v := range datapoint {
+				if k != "value" && k != "timestamp" {
+					labelPairs = append(labelPairs, &remote.LabelPair{
+						Name:  k,
+						Value: v.(string),
+					})
+				}
 			}
+
+			ts = &remote.TimeSeries{
+				Labels:  labelPairs,
+				Samples: make([]*remote.Sample, 0, 100),
+			}
+
+			labelsToSeries[key] = ts
 		}
 
-		ts := &remote.TimeSeries{
-			Labels:  labelPairs,
-			Samples: make([]*remote.Sample, 0, 100),
-		}
-
-		labelsToSeries = append(labelsToSeries, ts)
 		t, _ := time.Parse(time.RFC3339, datapoint["timestamp"].(string))
-
-		log.Info(t)
 		timeInMillis := (t.UTC().UnixNano() / int64(time.Millisecond))
-		// datapoint["value"].(float64)
+
 		ts.Samples = append(ts.Samples, &remote.Sample{
 			TimestampMs: timeInMillis,
-			Value:       float64(i),
+			Value:       datapoint["value"].(float64),
 		})
 
 	}
@@ -124,4 +127,15 @@ func responseToTimeseries(dataPoints []map[string]interface{}) []*remote.TimeSer
 	}
 
 	return resp
+}
+
+func buildKey(datapoint map[string]interface{}) string {
+	keys := make([]string, 0, len(datapoint))
+	for k, v := range datapoint {
+		if k != "value" && k != "timestamp" {
+			keys = append(keys, v.(string))
+		}
+	}
+	sort.Strings(keys)
+	return strings.Join(keys[:], ",")
 }

@@ -17,8 +17,8 @@ rule_files:
   # - "second_rules.yml"
 
   # Remote write configuration (for Graphite, OpenTSDB, or InfluxDB).
-# remote_write:
-#   - url: "http://192.168.0.101:9201/write"
+remote_write:
+  - url: "http://192.168.0.101:9201/write"
 
 # Remote read configuration (for InfluxDB only at the moment).
 remote_read:
