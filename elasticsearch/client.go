@@ -3,6 +3,7 @@ package elasticsearch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"time"
 
@@ -10,7 +11,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/storage/remote"
 )
+
+type errNoDataPointsFound struct {
+	message string
+}
+
+func newErrNoDataPointsFound(message string) *errNoDataPointsFound {
+	return &errNoDataPointsFound{
+		message: message,
+	}
+}
+
+func (e *errNoDataPointsFound) Error() string {
+	return e.message
+}
 
 // Client allows sending batches of Prometheus samples to ElasticSearch.
 type Client struct {
@@ -40,6 +56,8 @@ func generateEsIndex(esIndexPerfix string) string {
 // NewClient return a Client which contains an elasticsearch client.
 // Now, it generates the real esIndex formatted with `<esIndexPerfix>-YYYY-mm-dd`.
 func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout time.Duration) *Client {
+	ctx := context.Background()
+
 	client, err := elastic.NewClient(
 		elastic.SetURL(url),
 		elastic.SetMaxRetries(maxRetries),
@@ -53,7 +71,7 @@ func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout
 	// Use the IndexExists service to check if a specified index exists.
 	esIndex := generateEsIndex(esIndexPerfix)
 
-	exists, err := client.IndexExists(esIndex).Do(context.Background())
+	exists, err := client.IndexExists(esIndex).Do(ctx)
 	if err != nil {
 		log.Errorf("index %v is not found in Elastic.", esIndex)
 	}
@@ -61,7 +79,7 @@ func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout
 	// Create an index if it is not exist.
 	if !exists {
 		// Create a new index.
-		createIndex, err := client.CreateIndex(esIndex).Do(context.Background())
+		createIndex, err := client.CreateIndex(esIndex).Do(ctx)
 		if err != nil {
 			log.Fatalf("failed to create index %v, err: %v", esIndex, err)
 		}
@@ -87,6 +105,8 @@ func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout
 
 // Write sends a batch of samples to Elasticsearch.
 func (c *Client) Write(samples model.Samples) error {
+	ctx := context.Background()
+
 	bulkRequest := c.client.Bulk().Timeout(c.timeout.String())
 
 	for _, s := range samples {
@@ -113,7 +133,7 @@ func (c *Client) Write(samples model.Samples) error {
 		bulkRequest = bulkRequest.Add(indexRq)
 	}
 
-	bulkResponse, err := bulkRequest.Do(context.Background())
+	bulkResponse, err := bulkRequest.Do(ctx)
 	if err != nil {
 		return err
 	}
@@ -125,6 +145,50 @@ func (c *Client) Write(samples model.Samples) error {
 		c.ignoredSamples.Inc()
 	}
 	return nil
+}
+
+// Read queries metrics from Elasticsearch.
+func (c *Client) Read(req *remote.ReadRequest) ([]map[string]interface{}, error) {
+	ctx := context.Background()
+	querier := req.Queries[0]
+	query := elastic.NewBoolQuery()
+
+	for _, matcher := range querier.Matchers {
+		query = query.Must(elastic.NewTermQuery(matcher.Name, matcher.Value))
+	}
+
+	query = query.Filter(elastic.
+		NewRangeQuery("timestamp").
+		From(querier.StartTimestampMs).
+		To(querier.EndTimestampMs))
+
+	searchResult, err := c.client.
+		Search().
+		Index(c.esIndex).
+		Query(query).
+		Size(1000).
+		Sort("timestamp", true).
+		Do(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var dataPoints []map[string]interface{}
+
+	if searchResult.Hits.TotalHits > 0 {
+		fmt.Printf("Found a total of %d data points\n", searchResult.Hits.TotalHits)
+
+		for _, hit := range searchResult.Hits.Hits {
+			var dataPoint map[string]interface{}
+			json.Unmarshal(*hit.Source, &dataPoint)
+			dataPoints = append(dataPoints, dataPoint)
+		}
+	} else {
+		return nil, newErrNoDataPointsFound("Found no metrics")
+	}
+
+	return dataPoints, nil
 }
 
 // Name identifies the client as an elasticsearch client.

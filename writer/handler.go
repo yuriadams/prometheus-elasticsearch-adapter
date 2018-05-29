@@ -3,7 +3,6 @@ package writer
 import (
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -12,13 +11,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/yuriadams/prometheus-elasticsearch-adapter/config"
-	"github.com/yuriadams/prometheus-elasticsearch-adapter/elasticsearch"
 )
-
-type writer interface {
-	Write(samples model.Samples) error
-	Name() string
-}
 
 // Handle receives the payload from Prometheus, format and send to Elasticsearch
 func Handle(w http.ResponseWriter, r *http.Request) {
@@ -43,25 +36,10 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	samples := protoToSamples(&req)
 	config.ReceivedSamples.Add(float64(len(samples)))
 
-	go func(rw writer) {
+	writer, _ := config.BuildClient()
+	go func(rw config.Writer) {
 		sendSamples(rw, samples)
-	}(buildWriter())
-}
-
-func buildWriter() writer {
-	cfg := config.GetConfig()
-	var w writer
-
-	if cfg.ElasticsearchURL != "" {
-		url, err := url.Parse(cfg.ElasticsearchURL)
-		if err != nil {
-			log.Fatalf("Failed to parse Elasticsearch URL %q: %v", cfg.ElasticsearchURL, err)
-		}
-		c := elasticsearch.NewClient(url.String(), cfg.ElasticsearchMaxRetries,
-			cfg.ElasticIndexPerfix, cfg.ElasticType, 30*time.Second)
-		w = c
-	}
-	return w
+	}(writer)
 }
 
 func protoToSamples(req *remote.WriteRequest) model.Samples {
@@ -84,7 +62,7 @@ func protoToSamples(req *remote.WriteRequest) model.Samples {
 	return samples
 }
 
-func sendSamples(w writer, samples model.Samples) {
+func sendSamples(w config.Writer, samples model.Samples) {
 	begin := time.Now()
 
 	err := w.Write(samples)

@@ -23,9 +23,17 @@ var (
 		},
 		[]string{"remote"},
 	)
+	WriteSamples = prometheus.NewSummary(prometheus.SummaryOpts{
+		Name: "es_adapter_write_timeseries_samples",
+		Help: "How many samples each written timeseries has.",
+	})
 	ReadDuration = prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name: "es_adapter_read_latency_seconds",
 		Help: "How long it took us to respond to read requests.",
+	})
+	ReadErrors = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "es_adapter_read_failed_total",
+		Help: "How many selects from Elasticsearch failed.",
 	})
 	SentBatchDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{

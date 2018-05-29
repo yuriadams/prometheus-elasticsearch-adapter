@@ -1,4 +1,4 @@
-// Copyright 2018 The Prometheus Authors
+// Copyright 2017 The Prometheus Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -30,6 +30,9 @@ func init() {
 	prometheus.MustRegister(config.SentSamples)
 	prometheus.MustRegister(config.FailedSamples)
 	prometheus.MustRegister(config.SentBatchDuration)
+	prometheus.MustRegister(config.WriteSamples)
+	prometheus.MustRegister(config.ReadDuration)
+	prometheus.MustRegister(config.ReadErrors)
 }
 
 func main() {

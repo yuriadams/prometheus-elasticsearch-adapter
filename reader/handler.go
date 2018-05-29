@@ -3,6 +3,7 @@ package reader
 import (
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -11,11 +12,6 @@ import (
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/yuriadams/prometheus-elasticsearch-adapter/config"
 )
-
-type reader interface {
-	Read(req *remote.ReadRequest) (*remote.ReadResponse, error)
-	Name() string
-}
 
 // Handle receives the payload from Elasticsearch, format and send to Prometheus
 func Handle(w http.ResponseWriter, r *http.Request) {
@@ -36,8 +32,10 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	prometheus.NewTimer(config.ReadDuration)
+
 	var req remote.ReadRequest
-	if err := proto.Unmarshal(reqBuf, &req); err != nil {
+	if err1 := proto.Unmarshal(reqBuf, &req); err1 != nil {
 		log.With("err", err).Error("Failed to unmarshal body.")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -49,31 +47,81 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("*******>>>>>KEURI<<<<<**********")
-	log.Info(req.Queries[0])
+	_, reader := config.BuildClient()
 
-	// result, err := ca.runQuery(req.Queries[0])
-	// if err != nil {
-	// 	log.With("err", err).Error("Failed to run select against Crate.")
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// resp := remote.ReadResponse{
-	// 	Results: []*remote.QueryResult{
-	// 		{Timeseries: result},
-	// 	},
-	// }
-	// data, err := proto.Marshal(&resp)
-	// if err != nil {
-	// 	log.With("err", err).Error("Failed to marshal response.")
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	//
-	// w.Header().Set("Content-Type", "application/x-protobuf")
-	// if _, err := w.Write(snappy.Encode(nil, data)); err != nil {
-	// 	log.With("err", err).Error("Failed to compress response.")
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	datapoints, err := reader.Read(&req)
+	if err != nil {
+		log.With("err", err).Error("Failed to run select.")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := remote.ReadResponse{
+		Results: []*remote.QueryResult{
+			{Timeseries: responseToTimeseries(datapoints)},
+		},
+	}
+	// log.Infof("Entrypoint: time - %s  |  Value: %f", datapoint["timestamp"].(string), datapoint["value"].(float64))
+	log.Infof("Returned %d time series.", len(resp.Results[0].Timeseries))
+	log.Info(">>>>>>>>>>>>>>>>>>>>>", resp.Results[0].Timeseries)
+	data, err := proto.Marshal(&resp)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-protobuf")
+	w.Header().Set("Content-Encoding", "snappy")
+
+	compressed = snappy.Encode(nil, data)
+	if _, err := w.Write(compressed); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func responseToTimeseries(dataPoints []map[string]interface{}) []*remote.TimeSeries {
+	labelsToSeries := []*remote.TimeSeries{}
+	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
+	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
+	dataPoints = append(dataPoints[:0], dataPoints[1:]...)
+	// dataPoints = append(dataPoints[:0], dataPoints[1:]...)
+	for i, datapoint := range dataPoints {
+		labelPairs := make([]*remote.LabelPair, 0, len(dataPoints)+1)
+
+		for k, v := range datapoint {
+			if k != "value" && k != "timestamp" {
+				labelPairs = append(labelPairs, &remote.LabelPair{
+					Name:  k,
+					Value: v.(string),
+				})
+			}
+		}
+
+		ts := &remote.TimeSeries{
+			Labels:  labelPairs,
+			Samples: make([]*remote.Sample, 0, 100),
+		}
+
+		labelsToSeries = append(labelsToSeries, ts)
+		t, _ := time.Parse(time.RFC3339, datapoint["timestamp"].(string))
+
+		log.Info(t)
+		timeInMillis := (t.UTC().UnixNano() / int64(time.Millisecond))
+		// datapoint["value"].(float64)
+		ts.Samples = append(ts.Samples, &remote.Sample{
+			TimestampMs: timeInMillis,
+			Value:       float64(i),
+		})
+
+	}
+
+	resp := make([]*remote.TimeSeries, 0, len(labelsToSeries))
+
+	for _, ts := range labelsToSeries {
+		resp = append(resp, ts)
+	}
+
+	return resp
 }
