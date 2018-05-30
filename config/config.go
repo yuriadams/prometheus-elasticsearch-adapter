@@ -3,6 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
@@ -23,7 +24,7 @@ type Config struct {
 // GetConfig returns the app's configuration described on config.yaml on root
 func GetConfig() *Config {
 	cfg := &Config{}
-	yamlFile, err := ioutil.ReadFile("./config.yaml")
+	yamlFile, err := ioutil.ReadFile(os.Getenv("CONFIG_PATH"))
 
 	if err != nil {
 		log.Printf("yamlFile.Get err  #%v ", err)
