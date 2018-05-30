@@ -17,6 +17,7 @@ type Config struct {
 	RemoteTimeout           time.Duration `yaml:"web.timeout"`
 	ListenAddr              string        `yaml:"web.listen.addr"`
 	TelemetryPath           string        `yaml:"web.telemetry.path"`
+	AwsElasticSearchService bool          `yaml:"elasticsearch.aws.service"`
 }
 
 // GetConfig returns the app's configuration described on config.yaml on root

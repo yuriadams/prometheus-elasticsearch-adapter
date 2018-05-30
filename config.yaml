@@ -2,5 +2,6 @@ elasticsearch.url: http://elasticsearch:9200
 elasticsearch.max.retries: 1
 elasticsearch.index.perfix: prometheus
 elasticsearch.type: prom-metric
+elasticsearch.aws.service: false #Indentifies if we are using AWS ElasticSearchService or our own
 web.listen.addr: :9201
 web.telemetry.path: /metrics

@@ -34,7 +34,7 @@ func BuildClient() (Writer, Reader) {
 			log.Fatalf("Failed to parse Elasticsearch URL %q: %v", cfg.ElasticsearchURL, err)
 		}
 		c := elasticsearch.NewClient(url.String(), cfg.ElasticsearchMaxRetries,
-			cfg.ElasticIndexPerfix, cfg.ElasticType, 30*time.Second)
+			cfg.ElasticIndexPerfix, cfg.ElasticType, 30*time.Second, cfg.AwsElasticSearchService)
 		w = c
 		r = c
 	}

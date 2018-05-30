@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
+	"os"
 	"time"
 
 	elastic "github.com/olivere/elastic"
@@ -12,7 +14,13 @@ import (
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/storage/remote"
+	awsauth "github.com/smartystreets/go-aws-auth"
 )
+
+type awsSigningTransport struct {
+	HTTPClient  *http.Client
+	Credentials awsauth.Credentials
+}
 
 type errNoDataPointsFound struct {
 	message string
@@ -53,19 +61,50 @@ func generateEsIndex(esIndexPerfix string) string {
 	return esIndexPerfix + separator + dateSuffix
 }
 
+// RoundTrip implementation
+func (a awsSigningTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return a.HTTPClient.Do(awsauth.Sign4(req, a.Credentials))
+}
+
 // NewClient returns a Client which contains an elasticsearch client.
 // Now, it generates the real esIndex formatted with `<esIndexPerfix>-YYYY-mm-dd`.
-func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout time.Duration) *Client {
+func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout time.Duration, awsService bool) *Client {
 	ctx := context.Background()
+	var client *elastic.Client
+	var err error
+	if awsService {
+		signingTransport := awsSigningTransport{
+			Credentials: awsauth.Credentials{
+				AccessKeyID:     os.Getenv("AWS_ACCESS_KEY"),
+				SecretAccessKey: os.Getenv("AWS_SECRET_KEY"),
+			},
+			HTTPClient: http.DefaultClient,
+		}
 
-	client, err := elastic.NewClient(
-		elastic.SetURL(url),
-		elastic.SetMaxRetries(maxRetries),
-		// TODO: add basic auth support.
-	)
+		signingClient := &http.Client{
+			Transport: http.RoundTripper(signingTransport),
+		}
 
-	if err != nil {
-		log.Fatal(err)
+		client, err = elastic.NewClient(
+			elastic.SetURL(url),
+			elastic.SetScheme("https"),
+			elastic.SetHttpClient(signingClient),
+			elastic.SetSniff(false),
+		)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		client, err = elastic.NewClient(
+			elastic.SetURL(url),
+			elastic.SetMaxRetries(maxRetries),
+			// TODO: add basic auth support.
+		)
+
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// Use the IndexExists service to check if a specified index exists.
