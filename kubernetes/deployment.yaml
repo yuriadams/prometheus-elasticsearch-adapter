@@ -1,0 +1,46 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: elasticsearch-adapter-deploy
+  labels:
+    app: elasticsearch-adapter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch-adapter
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-adapter
+    spec:
+      volumes:
+        -
+          configMap:
+            items:
+              - key: ga_creds.json
+                path: ga_creds.json
+              - key: conf.yaml
+                path: conf.yaml
+            name: elasticsearch-adapter-config
+          name: elasticsearch-adapter-config-volume
+      containers:
+      - name: elasticsearch-adapter
+        image: yuriadams/ganalytics:2
+        env:
+         - name: CRED_FILE
+           valueFrom:
+             configMapKeyRef:
+               name: elasticsearch-adapter-config
+               key: credFile.path
+         - name: CONFIG_FILE
+           valueFrom:
+             configMapKeyRef:
+               name: elasticsearch-adapter-config
+               key: configFile.path
+        ports:
+        - containerPort: 9100
+        volumeMounts:
+          -
+            mountPath: /go/src/app/config
+            name: elasticsearch-adapter-config-volume

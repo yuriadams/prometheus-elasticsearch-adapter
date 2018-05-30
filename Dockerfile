@@ -1,9 +1,21 @@
-FROM golang:1.9
-ADD . /go/src/github.com/yuriadams/prometheus-elasticsearch-adapter
-ENV CGO_ENABLED=0
-RUN go install github.com/yuriadams/prometheus-elasticsearch-adapter
+FROM golang:alpine
+LABEL description="Elastic write/read adapter for Prometheus remote storage."
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
-COPY --from=0 /go/bin/prometheus-elasticsearch-adapter /usr/local/bin/prometheus-elasticsearch-adapter
-ENTRYPOINT ["/usr/local/bin/prometheus-elasticsearch-adapter"]
+ENV APP_PATH /go/src/app
+
+RUN mkdir $APP_PATH
+
+WORKDIR $APP_PATH
+
+COPY . .
+
+#Install dep, Git and dependencies
+RUN apk --update add git openssh && \
+    apk add --update ca-certificates && \
+    apk add --no-cache curl && \
+    curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh && \
+    dep ensure && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm /var/cache/apk/*
+
+CMD go run main.go

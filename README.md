@@ -4,6 +4,12 @@ Elastic write/read adapter for Prometheus remote storage, more details refer to:
 
 It will receive prometheus samples and send batch requests to [Elastic](https://www.elastic.co/)
 
+## dependencies using [dep](https://github.com/golang/dep)
+
+```
+dep init
+```
+
 ## Building
 
 ```
@@ -14,6 +20,12 @@ go build
 
 ```
 ./prometheus-elasticsearch-adapter
+```
+
+## Running with Docker Compose
+
+```
+docker-compose up
 ```
 
 config.yaml file:

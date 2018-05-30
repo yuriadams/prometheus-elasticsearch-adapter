@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: elasticsearch-adapter
+  labels:
+    k8s-app: elasticsearch-adapter
+spec:
+  selector:
+    matchExpressions:
+    - {key: k8s-app, operator: Exists}
+  namespaceSelector:
+    matchNames:
+    - default
+    - monitoring
+  endpoints:
+  - port: web
+    interval: 10s

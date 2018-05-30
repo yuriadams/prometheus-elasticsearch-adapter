@@ -1,4 +1,4 @@
-elasticsearch.url: http://localhost:9200
+elasticsearch.url: http://elasticsearch:9200
 elasticsearch.max.retries: 1
 elasticsearch.index.perfix: prometheus
 elasticsearch.type: prom-metric

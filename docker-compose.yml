@@ -1,0 +1,28 @@
+version: '2.1'
+
+services:
+  app:
+    build: .
+    restart: on-failure
+    ports:
+      - "9201:9201"
+    volumes:
+      - ./config.yaml:/go/src/app/config.yaml
+    depends_on:
+      - elasticsearch
+
+  prometheus:
+    image: quay.io/prometheus/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - app
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.2.4
+    ports:
+      - "9200:9200"
+      - "9300:9300"

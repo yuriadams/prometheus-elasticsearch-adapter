@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: elasticsearch-adapter-service
+  labels:
+    k8s-app: elasticsearch-adapter
+spec:
+  selector:
+    app: elasticsearch-adapter
+  ports:
+   - name: web
+     protocol: TCP
+     port: 9201
+     targetPort: 9201
+  type: LoadBalancer
