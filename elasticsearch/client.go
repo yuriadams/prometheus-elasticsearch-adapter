@@ -98,6 +98,7 @@ func NewClient(url string, maxRetries int, esIndexPerfix, esType string, timeout
 	} else {
 		client, err = elastic.NewClient(
 			elastic.SetURL(url),
+			elastic.SetSniff(false),
 			elastic.SetMaxRetries(maxRetries),
 			// TODO: add basic auth support.
 		)
